@@ -1,6 +1,9 @@
-from Tensor import Tensor
+try:
+    from Tensor import Tensor
+except:
+    from engine.Tensor import Tensor
+
 import numpy as np
-from graph import draw_dot
 
 class Linear:
     def __init__(self, features_in:int, features_out:int):
