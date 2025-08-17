@@ -23,13 +23,25 @@ class Tensor():
         return out
 
     def __add__(self, other):
-        assert self.data.shape == other.data.shape
         out = Tensor(data=self.data + other.data, children=(self,other), _op='add')
-        
+
         def _backward():
-            self.grad += out.grad
-            other.grad += out.grad 
-        
+            grad_self = out.grad
+            while grad_self.ndim > self.data.ndim:
+                grad_self = grad_self.sum(axis=0)
+            for i, dim in enumerate(self.data.shape):
+                if dim == 1:
+                    grad_self = grad_self.sum(axis=i, keepdims=True)
+            self.grad += grad_self
+
+            grad_other = out.grad
+            while grad_other.ndim > other.data.ndim:
+                grad_other = grad_other.sum(axis=0)
+            for i, dim in enumerate(other.data.shape):
+                if dim == 1:
+                    grad_other = grad_other.sum(axis=i, keepdims=True)
+            other.grad += grad_other
+                
         out._backward = _backward
 
         return out
@@ -51,7 +63,15 @@ class Tensor():
     
     def __rmul__(self,value):
         return self * value
-    
+
+    def relu(self):
+        out = Tensor(self.data * (self.data > 0).astype(int), children = tuple([self]), _op='relu')
+
+        def _backward():
+            self.grad += (self.data > 0).astype(int) * out.grad
+
+        out._backward = _backward
+        return out
 
     def backward(self):
         assert self.data.shape == ()
@@ -64,7 +84,6 @@ class Tensor():
             topo.append(node)
             
         build_topo(self)
-        
         self.grad=1.
         for node in reversed(topo):
             node._backward()
